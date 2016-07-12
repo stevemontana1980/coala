@@ -1,5 +1,7 @@
 import unittest
 
+from coalib.bearlib.languages.documentation.DocstyleDefinition import (
+    DocstyleDefinition)
 from coalib.bearlib.languages.documentation.DocumentationComment import (
     DocumentationComment)
 from coalib.bearlib.languages.documentation.DocumentationExtraction import (
@@ -18,24 +20,25 @@ class DocumentationCommentTest(unittest.TestCase):
 class GeneralDocumentationCommentTest(DocumentationCommentTest):
 
     def test_fields(self):
+        c_doxygen = DocstyleDefinition.load("C", "doxygen")
         uut = DocumentationComment("my doc",
-                                   "c",
-                                   "default",
+                                   c_doxygen,
                                    " ",
                                    ("/**", "*", "*/"),
                                    (25, 45))
 
         self.assertEqual(uut.documentation, "my doc")
         self.assertEqual(uut.language, "c")
-        self.assertEqual(uut.docstyle, "default")
+        self.assertEqual(uut.docstyle, "doxygen")
         self.assertEqual(uut.indent, " ")
         self.assertEqual(str(uut), "my doc")
         self.assertEqual(uut.marker, ("/**", "*", "*/"))
         self.assertEqual(uut.range, (25, 45))
 
+        python_doxygen = DocstyleDefinition.load("python", "doxygen")
+
         uut = DocumentationComment("qwertzuiop",
-                                   "python",
-                                   "doxygen",
+                                   python_doxygen,
                                    "\t",
                                    ("##", "#", "#"),
                                    None)
@@ -47,12 +50,6 @@ class GeneralDocumentationCommentTest(DocumentationCommentTest):
         self.assertEqual(str(uut), "qwertzuiop")
         self.assertEqual(uut.marker, ("##", "#", "#"))
         self.assertEqual(uut.range, None)
-
-    def test_not_implemented(self):
-        not_implemented = DocumentationComment(
-            "some docs", "nolang", "doxygen", None, None, None)
-        with self.assertRaises(NotImplementedError):
-            not_implemented.parse()
 
 
 class PythonDocumentationCommentTest(DocumentationCommentTest):
@@ -66,7 +63,9 @@ class PythonDocumentationCommentTest(DocumentationCommentTest):
                               list,
                               "expected needs to be a list for this test.")
 
-        doc_comment = DocumentationComment(docstring, "python", "default",
+        python_default = DocstyleDefinition.load("python", "default")
+
+        doc_comment = DocumentationComment(docstring, python_default,
                                            None, None, None)
         parsed_metadata = doc_comment.parse()
         self.assertEqual(parsed_metadata, expected)
