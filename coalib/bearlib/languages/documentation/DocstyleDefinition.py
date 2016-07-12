@@ -1,4 +1,4 @@
-from collections import Iterable
+from collections import Iterable, namedtuple
 import os.path
 
 from coala_decorators.decorators import (
@@ -14,9 +14,12 @@ class DocstyleDefinition:
     documentation comment (for which language, documentation style/tool used
     etc.).
     """
+    Metadata = namedtuple("Metadata", ("param_start", "param_end",
+                                       "return_sep"))
 
     @enforce_signature
-    def __init__(self, language: str, docstyle: str, markers: (Iterable, str)):
+    def __init__(self, language: str, docstyle: str, markers: (Iterable, str),
+                 metadata: Metadata):
         """
         Instantiates a new DocstyleDefinition.
 
@@ -29,6 +32,8 @@ class DocstyleDefinition:
                          or a single marker/delimiter string iterable that
                          identify a documentation comment. See ``markers``
                          property for more details on markers.
+        :param metadata: A namedtuple consisting of certain attributes that
+                         are present in the documentation comment.
         """
         self._language = language.lower()
         self._docstyle = docstyle.lower()
@@ -46,6 +51,8 @@ class DocstyleDefinition:
             if length != 3:
                 raise ValueError("Length of a given marker set was not 3 (was "
                                  "actually {}).".format(length))
+
+        self._metadata = metadata
 
     @property
     def language(self):
@@ -106,6 +113,15 @@ class DocstyleDefinition:
         """
         return self._markers
 
+    @property
+    def metadata(self):
+        """
+        A namedtuple of certain attributes present in the documentation.
+
+        These attributes are used to define parts of the documentation.
+        """
+        return self._metadata
+
     @classmethod
     @enforce_signature
     def load(cls, language: str, docstyle: str, coalang_dir=None):
@@ -152,9 +168,30 @@ class DocstyleDefinition:
             raise KeyError("Language {!r} is not defined for docstyle {!r}."
                            .format(language, docstyle))
 
+        def get_from_docstyle_settings(*args):
+            values = list()
+            for req_setting in args:
+                setting = dict(
+                    docstyle_settings.contents.items()).get(req_setting)
+                try:
+                    setting = setting.value
+                except AttributeError:
+                    setting = ""
+                values.append(setting)
+            return values
+
+        metadata_settings = ("param_start", "param_end", "return")
+
+        values = get_from_docstyle_settings('param_start', 'param_end',
+                                            'return_sep')
+
+        metadata = cls.Metadata(*values)
+
+        ignored_settings = ("comment",) + metadata_settings
+
         marker_sets = (tuple(value)
                        for key, value in
-                       filter(lambda kv: not kv[0].startswith("comment"),
-                              docstyle_settings.contents.items()))
+                       docstyle_settings.contents.items()
+                       if not key.startswith(ignored_settings))
 
-        return cls(language, docstyle, marker_sets)
+        return cls(language, docstyle, marker_sets, metadata)
